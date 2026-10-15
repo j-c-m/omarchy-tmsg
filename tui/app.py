@@ -204,7 +204,6 @@ class TmsgApp(App):
         self.pair_code = ""
         self.phones: list[dict] = []
         self.saved_address = ""
-        self.phone_name = ""
         self.contacts_pending = False
         self.setup_step = "scan"
         self.setup_panel = ""
@@ -378,7 +377,6 @@ class TmsgApp(App):
         elif kind == "status":
             status = event.get("status") or {}
             self.saved_address = str(status.get("phoneAddress") or "")
-            self.phone_name = str(status.get("phoneName") or "")
             self.notify_body = bool(status.get("notifyBody"))
             state = str(status.get("state") or "")
             self.link_state = state
@@ -473,20 +471,14 @@ class TmsgApp(App):
         self.query_one("#threads", ThreadList).focus()
         self.client.send({"cmd": "scan"})
 
-    def _leave_setup(self, announce: bool = False) -> None:
+    def _leave_setup(self) -> None:
         leaving_setup = self.mode == "setup"
         self.mode = "threads"
         self.setup_note = ""
         self._show_threads()
         self._hint_for_mode()
         if leaving_setup:
-            log = self.query_one("#transcript", Transcript)
-            log.clear()
-            if announce:
-                if self.phone_name:
-                    log.write(f"Connected to {self.phone_name}. Pick a conversation on the left.")
-                else:
-                    log.write("Connected. Pick a conversation on the left.")
+            self.query_one("#transcript", Transcript).clear()
 
     def _set_setup_step(self, step: str) -> None:
         self.setup_step = step
@@ -499,7 +491,7 @@ class TmsgApp(App):
     def _follow_setup(self, state: str) -> None:
         """Advance the wizard from daemon states. Failures keep their step."""
         if state == "connected":
-            self._leave_setup(announce=True)
+            self._leave_setup()
         elif state == "waiting_for_switches":
             self._set_setup_step("switches")
         elif state == "pairing" and self.pair_code:

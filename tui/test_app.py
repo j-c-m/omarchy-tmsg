@@ -429,7 +429,7 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.mode, "threads")
             self.assertEqual(str(app.query_one("#status").content), "Connected: Ada iPhone")
 
-    async def test_connected_clears_panel_and_says_success(self):
+    async def test_connected_clears_panel_without_a_note(self):
         client = QueueClient()
         app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
@@ -447,7 +447,7 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             log = app.query_one("#transcript", Transcript)
             panel = "\n".join(strip.text for strip in log.lines)
             self.assertNotIn("Setup 4 of 4", panel)
-            self.assertIn("Connected", panel)
+            self.assertEqual(panel, "")
 
     async def test_connected_without_contacts_nudges_switches(self):
         client = QueueClient()
