@@ -26,6 +26,11 @@ class StoreTests(unittest.TestCase):
         mode = os.stat(self.db.path).st_mode & 0o777
         self.assertEqual(mode, 0o600)
 
+    def test_notification_text_defaults_on(self):
+        self.assertTrue(self.db.settings()["notifyBody"])
+        self.db.set_notify_body(False)
+        self.assertFalse(self.db.settings()["notifyBody"])
+
     def test_directories_use_plugin_namespace(self):
         with tempfile.TemporaryDirectory() as data, tempfile.TemporaryDirectory() as runtime:
             env = {"XDG_DATA_HOME": data, "XDG_RUNTIME_DIR": runtime}

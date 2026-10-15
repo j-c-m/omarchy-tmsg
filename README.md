@@ -66,10 +66,10 @@ If the status line says the phone is already in a message session, another compu
 | `/` | Start filtering the list you are in. Escape clears it |
 | `y` / `n` | Accept or reject the pairing code |
 | `p` | Connect first, then pair — a fallback for when plain pairing stalls |
-| `t` | Include the message text in desktop notifications. Press again to turn it off. Not while writing a reply or filtering |
+| `t` | Leave the message text out of desktop notifications. Press again to include it. Not while writing a reply or filtering |
 | Escape | Step back, leave setup, then quit |
 
-The bar shows `t💬`, and a count when something is unread. The program name is tMsg. A desktop notification uses the contact's name. It does not include the message text unless you pressed `t`.
+The bar shows `t💬`, and a count when something is unread. The program name is tMsg. A desktop notification uses the contact's name and includes the message text. Press `t` to leave the text out.
 
 ## What you will not see
 

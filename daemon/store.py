@@ -60,7 +60,7 @@ class Store:
               own_number TEXT NOT NULL DEFAULT '',
               phone_address TEXT NOT NULL DEFAULT '',
               phone_name TEXT NOT NULL DEFAULT '',
-              notify_body INTEGER NOT NULL DEFAULT 0
+              notify_body INTEGER NOT NULL DEFAULT 1
             );
             INSERT OR IGNORE INTO settings (id) VALUES (1);
 

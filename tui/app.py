@@ -216,7 +216,7 @@ class TmsgApp(App):
         self.messages: list[dict] = []
         self._message_fit = 0
         self._reflowing = False
-        self.notify_body = False
+        self.notify_body = True
         self._filling = False
 
     def compose(self) -> ComposeResult:
