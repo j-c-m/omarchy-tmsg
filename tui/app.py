@@ -495,7 +495,7 @@ class TmsgApp(App):
                 "Setup 2 of 4: choose your iPhone",
                 "",
                 "Select your iPhone, then press Enter to pair.",
-                "If pairing stalls, press p to try the other way.",
+                "If pairing stalls, press p to connect first.",
             ]
         elif self.setup_step == "code":
             code = self.pair_code

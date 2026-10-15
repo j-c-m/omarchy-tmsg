@@ -418,9 +418,10 @@ class BluetoothSession:
     async def pair(self, address: str, explicit: bool) -> None:
         """Bond the phone, then open texts and contacts.
 
-        Enter connects first, which is what makes iOS finish pairing.
-        p calls Pair() when that connect stops. Audio profiles are
-        rejected and dropped either way.
+        Enter bonds without connecting first. Holding a profile
+        connection open makes iOS drop the link, while the message
+        channel brings the link up on demand. p keeps the old
+        connect-first behavior as a fallback.
         """
         async with self.lock:
             self._cancel_advert_stop()
@@ -434,10 +435,10 @@ class BluetoothSession:
                     bonded = False
                 if not bonded:
                     if explicit:
-                        await device.call_pair()
-                    else:
                         await device.call_connect()
                         await self._drop_audio(address)
+                    else:
+                        await device.call_pair()
                 await self._untrust(address)
                 self.store.set_phone(address, name)
                 self.detail = "Paired. Waiting for the iPhone switches."
@@ -627,7 +628,10 @@ class BluetoothSession:
 
     async def _open_profiles(self, address: str, announce: bool, recover: bool = True) -> None:
         await self._ensure_obexd()
-        await self._bring_up_link(address)
+        # No eager connect: the OBEX session pages the phone on demand,
+        # and a held profile connection makes iOS drop the link. When the
+        # message channel reports the link down, the retry below brings
+        # it up explicitly.
         await self._close_profiles()
         client = await self._iface("org.bluez.obex", "/org/bluez/obex", "org.bluez.obex.Client1", self._session_bus)
         try:

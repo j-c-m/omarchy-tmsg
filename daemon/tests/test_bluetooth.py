@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -36,6 +37,45 @@ class DbusPathTests(unittest.TestCase):
             # Hyphens are illegal in a D-Bus object path element.
             self.assertNotIn("-", path)
             self.assertTrue(all(part for part in path.split("/")[1:]))
+
+
+class PairBondTests(unittest.IsolatedAsyncioTestCase):
+    async def _session(self, directory: str) -> tuple:
+        from store import Store
+
+        store = Store(path=Path(directory) / "messages.db")
+        events: list[dict] = []
+        session = BluetoothSession(store, events.append)
+        device = mock.AsyncMock()
+        device.get_paired.return_value = False
+        session._device = mock.AsyncMock(return_value=device)
+        session._device_name = mock.AsyncMock(return_value="Ada iPhone")
+        for name in ("_register_agent", "_unregister_agent", "_untrust", "_start_advert", "_open_profiles"):
+            setattr(session, name, mock.AsyncMock())
+        session._schedule_advert_stop = mock.Mock()
+        return session, store, events, device
+
+    async def test_enter_bonds_without_connecting_first(self):
+        directory = tempfile.mkdtemp()
+        session, store, _events, device = await self._session(directory)
+        try:
+            await session.pair("AA:BB:CC:DD:EE:FF", False)
+            device.call_pair.assert_awaited_once()
+            device.call_connect.assert_not_awaited()
+            self.assertEqual(store.settings()["phoneAddress"], "AA:BB:CC:DD:EE:FF")
+            self.assertEqual(session.state, "waiting_for_switches")
+        finally:
+            store.close()
+
+    async def test_p_keeps_connect_first_as_fallback(self):
+        directory = tempfile.mkdtemp()
+        session, store, _events, device = await self._session(directory)
+        try:
+            await session.pair("AA:BB:CC:DD:EE:FF", True)
+            device.call_connect.assert_awaited_once()
+            device.call_pair.assert_not_awaited()
+        finally:
+            store.close()
 
 
 class IngestPreviewTests(unittest.TestCase):
