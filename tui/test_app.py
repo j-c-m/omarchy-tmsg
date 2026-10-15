@@ -218,7 +218,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
         client = QueueClient()
         app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
-            await client.push({"event": "status", "status": {"state": "connected", "phoneName": "JM iPhone", "notifyBody": False}})
+            await client.push({"event": "status", "status": {"state": "connected", "phoneName": "Ada iPhone", "notifyBody": False}})
             await client.push({
                 "event": "threads",
                 "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}],
