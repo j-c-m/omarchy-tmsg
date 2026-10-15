@@ -490,6 +490,51 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             await pilot.pause()
             self.assertIn("two minutes", app.setup_panel)
 
+    async def test_accept_answers_at_once_in_setup(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "pair-code", "code": "123456"})
+            await pilot.pause()
+            await pilot.press("y")
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "confirming")
+            self.assertIn("Finishing pairing", app.setup_panel)
+            self.assertEqual(app.pair_code, "")
+        self.assertIn({"cmd": "confirm", "accept": True}, client.sent)
+
+    async def test_reject_answers_at_once_and_returns_to_pick(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({
+                "event": "devices",
+                "devices": [{"address": "AA:BB:CC:DD:EE:FF", "name": "Ada iPhone", "paired": False}],
+            })
+            await client.push({"event": "pair-code", "code": "123456"})
+            await pilot.pause()
+            await pilot.press("n")
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "pick")
+            self.assertIn("Code rejected.", app.setup_panel)
+        self.assertIn({"cmd": "confirm", "accept": False}, client.sent)
+
+    async def test_error_while_confirming_returns_to_pick(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "pair-code", "code": "123456"})
+            await pilot.pause()
+            await pilot.press("y")
+            await pilot.pause()
+            await client.push({"event": "error", "message": "Pairing failed."})
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "pick")
+            self.assertIn("Pairing failed.", app.setup_panel)
+
     async def test_error_keeps_setup_with_retry_hint(self):
         client = QueueClient()
         app = TmsgApp(client=client)

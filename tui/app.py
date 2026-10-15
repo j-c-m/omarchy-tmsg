@@ -35,6 +35,7 @@ SETUP_HINTS = {
     "scan": "enter scan again    esc leave setup",
     "pick": "j/k move    enter pair    p other way    / filter    esc leave setup",
     "code": CODE_HINT,
+    "confirming": "esc leave setup",
     "switches": "enter invite again    esc leave setup",
 }
 
@@ -402,6 +403,9 @@ class TmsgApp(App):
         elif kind == "error":
             message = str(event.get("message") or "Error")
             if self.mode == "setup":
+                if self.setup_step == "confirming":
+                    self.setup_step = "pick"
+                    self._show_phones()
                 self.setup_note = message
                 self._render_setup()
             else:
@@ -507,6 +511,12 @@ class TmsgApp(App):
                 "",
                 "Confirm this code on the iPhone too.",
                 "Press y here and confirm the same code on the phone.",
+            ]
+        elif self.setup_step == "confirming":
+            lines = [
+                "Code confirmed. Finishing pairing...",
+                "",
+                "The phone is being paired. This takes a moment.",
             ]
         elif self.setup_step == "switches":
             lines = [
@@ -858,6 +868,11 @@ class TmsgApp(App):
             return
         self.client.send({"cmd": "confirm", "accept": True})
         self.pair_code = ""
+        self._set_status("Code confirmed. Finishing pairing...")
+        if self.mode == "setup":
+            self.setup_step = "confirming"
+            self.setup_note = ""
+            self._render_setup()
         self._hint_for_mode()
 
     def action_reject_pair(self) -> None:
@@ -865,6 +880,12 @@ class TmsgApp(App):
             return
         self.client.send({"cmd": "confirm", "accept": False})
         self.pair_code = ""
+        self._set_status("Code rejected.")
+        if self.mode == "setup":
+            self.setup_step = "pick"
+            self.setup_note = "Code rejected."
+            self._show_phones()
+            self._render_setup()
         self._hint_for_mode()
 
     def _typing(self) -> bool:
