@@ -338,12 +338,35 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(composer.region.height, 3)
 
 
-class PairTests(unittest.IsolatedAsyncioTestCase):
-    async def test_an_unpaired_phone_lists_phones_and_enter_pairs(self):
+class SetupTests(unittest.IsolatedAsyncioTestCase):
+    async def test_unpaired_phone_enters_setup_and_scans(self):
         client = QueueClient()
         app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
-            await client.push({"event": "status", "status": {"state": "not_paired", "detail": "Select your iPhone."}})
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await pilot.pause()
+            self.assertEqual(app.mode, "setup")
+            self.assertEqual(app.setup_step, "scan")
+        self.assertIn({"cmd": "scan"}, client.sent)
+
+    async def test_enter_in_scan_sends_another_scan(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "devices", "devices": []})
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "scan")
+            await pilot.press("enter")
+            await pilot.pause()
+        scans = [item for item in client.sent if item["cmd"] == "scan"]
+        self.assertGreaterEqual(len(scans), 2)
+
+    async def test_phones_move_to_pick_and_enter_pairs(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
             await client.push({
                 "event": "devices",
                 "devices": [
@@ -352,13 +375,11 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
                 ],
             })
             await pilot.pause()
-            self.assertEqual(app.mode, "phones")
-            self.assertEqual(str(app.query_one("#hint").content), "j/k move    enter pair    p other pairing    / filter    esc back")
+            self.assertEqual(app.setup_step, "pick")
             panel = app.query_one("#threads")
             self.assertEqual(panel.get_option_at_index(0).prompt, "Ada iPhone")
             await pilot.press("enter")
             await pilot.pause()
-        self.assertIn({"cmd": "devices"}, client.sent)
         self.assertEqual(
             [item for item in client.sent if item["cmd"] == "pair"],
             [{"cmd": "pair", "address": "AA:BB:CC:DD:EE:FF", "explicit": False}],
@@ -385,15 +406,105 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
             [{"cmd": "pair", "address": "11:22:33:44:55:66", "explicit": True}],
         )
 
-    async def test_enter_on_an_empty_phone_list_scans(self):
+    async def test_pairing_code_shows_big_and_y_confirms(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "pair-code", "code": "123456"})
+            await client.push({"event": "status", "status": {"state": "pairing", "detail": "Confirm this code on the iPhone too."}})
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "code")
+            self.assertIn("123 456", app.setup_panel)
+            self.assertIn("iPhone", app.setup_panel)
+            await pilot.press("y")
+            await pilot.pause()
+            self.assertEqual(app.pair_code, "")
+        self.assertIn({"cmd": "confirm", "accept": True}, client.sent)
+
+    async def test_switches_step_names_both_switches(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "status", "status": {"state": "waiting_for_switches", "detail": "Paired. Waiting for the iPhone switches."}})
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "switches")
+            self.assertIn("Show Notifications", app.setup_panel)
+            self.assertIn("Sync Contacts", app.setup_panel)
+
+    async def test_connected_leaves_setup(self):
         client = QueueClient()
         app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
             await pilot.pause()
+            self.assertEqual(app.mode, "setup")
+            await client.push({
+                "event": "threads",
+                "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}],
+            })
+            await client.push({"event": "status", "status": {"state": "connected", "phoneName": "Ada iPhone"}})
+            await pilot.pause()
+            self.assertEqual(app.mode, "threads")
+            self.assertEqual(str(app.query_one("#status").content), "Connected: Ada iPhone")
+
+    async def test_escape_leaves_setup_and_stays_out(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await pilot.pause()
+            self.assertEqual(app.mode, "setup")
+            await pilot.press("escape")
+            await pilot.pause()
+            self.assertEqual(app.mode, "threads")
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await pilot.pause()
+            self.assertEqual(app.mode, "threads")
+
+    async def test_enter_in_switches_reinvites_saved_phone(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({
+                "event": "status",
+                "status": {"state": "waiting_for_switches", "phoneAddress": "AA:BB:CC:DD:EE:FF", "detail": "Paired."},
+            })
+            await pilot.pause()
+            self.assertEqual(app.setup_step, "switches")
             await pilot.press("enter")
             await pilot.pause()
-        self.assertIn({"cmd": "scan"}, client.sent)
+        self.assertIn(
+            {"cmd": "pair", "address": "AA:BB:CC:DD:EE:FF", "explicit": False},
+            client.sent,
+        )
+
+    async def test_switches_panel_names_time_window(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "status", "status": {"state": "waiting_for_switches", "detail": "Paired."}})
+            await pilot.pause()
+            self.assertIn("two minutes", app.setup_panel)
+
+    async def test_error_keeps_setup_with_retry_hint(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({
+                "event": "devices",
+                "devices": [{"address": "AA:BB:CC:DD:EE:FF", "name": "Ada iPhone", "paired": False}],
+            })
+            await pilot.pause()
+            await client.push({"event": "error", "message": "Pairing failed."})
+            await pilot.pause()
+            self.assertEqual(app.mode, "setup")
+            self.assertIn("Pairing failed.", app.setup_panel)
+
 
     async def test_a_phone_filter_hides_other_phones(self):
         client = QueueClient()
@@ -408,29 +519,13 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
                 ],
             })
             await pilot.pause()
+            self.assertEqual(app.setup_step, "pick")
             await pilot.press("slash")
             await pilot.press("o", "t", "h")
             await pilot.pause()
             panel = app.query_one("#threads")
             self.assertEqual(panel.option_count, 1)
             self.assertEqual(panel.get_option_at_index(0).prompt, "Other Phone")
-
-    async def test_a_connected_phone_leaves_the_phone_list(self):
-        client = QueueClient()
-        app = TmsgApp(client=client)
-        async with app.run_test(size=(100, 24)) as pilot:
-            await client.push({
-                "event": "threads",
-                "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}],
-            })
-            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
-            await pilot.pause()
-            self.assertEqual(app.mode, "phones")
-            await client.push({"event": "status", "status": {"state": "connected", "phoneName": "Ada iPhone"}})
-            await pilot.pause()
-            self.assertEqual(app.mode, "threads")
-            self.assertEqual(app.query_one("#threads").get_option_at_index(0).prompt, "Ada")
-            self.assertEqual(str(app.query_one("#status").content), "Connected: Ada iPhone")
 
     async def test_a_pairing_code_accepts_rejects_and_cancels(self):
         client = QueueClient()
@@ -665,12 +760,12 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(composer.text, "hello?")
             self.assertIn("open a conversation", str(app.query_one("#hint").content))
 
-    async def test_phones_mode_never_sends_to_a_stale_thread(self):
+    async def test_setup_never_sends_to_a_stale_thread(self):
         client = QueueClient()
         app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             app.open_key = "tel:+15550001111"
-            app.mode = "phones"
+            app.mode = "setup"
             composer = app.query_one("#composer", Composer)
             composer.focus()
             await pilot.pause()

@@ -41,10 +41,12 @@ omarchy restart shell
 
 ## Set up the iPhone
 
-1. Open the program. It lists phones that are already paired. Highlight your iPhone and press Enter.
-2. A code appears here and on the phone. Press `y` here and confirm the same code on the phone. Press `n` to reject it.
-3. If pairing stops on its own, press `p`. Enter connects and pairs. `p` pairs without that connect. On some adapters `p` only bonds Classic Bluetooth, which is still enough for texts. Either way this computer does not stay connected as a headset or a speaker.
-4. On the iPhone open **Settings → Bluetooth**, tap the **i** next to this computer, and turn on both switches in the picture. The phone may label the first one **Show Notifications** or **Show Message Notifications**. The second is **Sync Contacts**. They can take a minute to appear. If you see two entries with the same computer name, check both, then use this one.
+Opening the program starts a four-step setup while no phone is paired. Press Escape to leave it at any point.
+
+1. **Find.** It scans for nearby phones on its own. If yours is missing, press Enter to scan again. Keep Bluetooth on and the phone close.
+2. **Choose.** Highlight your iPhone and press Enter. That connects and pairs. If pairing stalls on its own, press `p` instead: it pairs without that connect. On some adapters `p` only bonds Classic Bluetooth, which is still enough for texts. Either way this computer does not stay connected as a headset or a speaker.
+3. **Confirm.** A large code appears here and on the phone. Press `y` here and confirm the same code on the phone. Press `n` to reject it.
+4. **Switches.** On the iPhone open **Settings → Bluetooth**, tap the **i** next to this computer, and turn on both switches in the picture. The phone may label the first one **Show Notifications** or **Show Message Notifications**. The second is **Sync Contacts**. They can take a minute to appear. If you see two entries with the same computer name, check both, then use this one. The invitation lasts about two minutes: if the switches never appear, press Enter to invite again. If a phone refuses to connect at all, switch Bluetooth off and on and start over.
 
 ![iPhone Bluetooth page for a computer named omarchy, with Show Notifications and Sync Contacts switched on.](docs/iphone-bluetooth-settings.jpg)
 
@@ -58,14 +60,14 @@ If the status line says the phone is already in a message session, another compu
 | Key | What it does |
 | --- | --- |
 | `j` / `k` or arrows | Move through the list |
-| Enter | Open the highlighted conversation, choose a contact, pair the highlighted phone, or send the reply. On an empty phone list, scan |
+| Enter | In setup: scan again, pair the highlighted phone, or invite again on the switches screen. Elsewhere: open the highlighted conversation, choose a contact, or send the reply |
 | `r` | Reply in the open conversation |
 | `n` | New text. Type to filter names, Enter to choose. Rejects a pairing code when one is showing |
 | `/` | Start filtering the list you are in. Escape clears it |
 | `y` / `n` | Accept or reject the pairing code |
-| `p` | Explicit pairing, only on the phone list |
+| `p` | Pair without connecting first, when setup asks you to choose. A fallback for when pairing stalls |
 | `t` | Include the message text in desktop notifications. Press again to turn it off. Not while writing a reply or filtering |
-| Escape | Step back, then quit |
+| Escape | Step back, leave setup, then quit |
 
 The bar shows `t💬`, and a count when something is unread. The program name is tMsg. A desktop notification uses the contact's name. It does not include the message text unless you pressed `t`.
 

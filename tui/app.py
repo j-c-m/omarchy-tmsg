@@ -30,8 +30,13 @@ from protocol import MAX_BODY_CHARS
 
 HINT = "j/k move    enter open    r reply    n new    ctrl+d delete    / filter    t notification text    esc back"
 RECONNECT_DELAY = 1.0
-PHONE_HINT = "j/k move    enter pair    p other pairing    / filter    esc back"
 CODE_HINT = "y accept    n reject    esc cancel"
+SETUP_HINTS = {
+    "scan": "enter scan again    esc leave setup",
+    "pick": "j/k move    enter pair    p other way    / filter    esc leave setup",
+    "code": CODE_HINT,
+    "switches": "enter invite again    esc leave setup",
+}
 
 
 class ThreadList(OptionList):
@@ -47,8 +52,8 @@ class ThreadList(OptionList):
 
     def action_select(self) -> None:
         app = self.app
-        if getattr(app, "mode", "") == "phones" and self.highlighted is None:
-            app.action_scan()
+        if getattr(app, "mode", "") == "setup" and self.highlighted is None:
+            app.setup_primary()
             return
         super().action_select()
 
@@ -201,6 +206,11 @@ class TmsgApp(App):
         self.filter_on = False
         self.pair_code = ""
         self.phones: list[dict] = []
+        self.saved_address = ""
+        self.setup_step = "scan"
+        self.setup_panel = ""
+        self.setup_note = ""
+        self._setup_seen_devices = False
         self.link_state = ""
         self._followed = False
         self.messages: list[dict] = []
@@ -318,7 +328,7 @@ class TmsgApp(App):
             self.client.send({"cmd": "messages", "thread": self.open_key})
         if self.mode == "contacts":
             self.client.send({"cmd": "contacts", "query": self.filter_text})
-        elif self.mode == "phones":
+        elif self.mode == "setup":
             self.client.send({"cmd": "devices"})
 
     async def _reconnect(self) -> None:
@@ -353,8 +363,13 @@ class TmsgApp(App):
                 self._show_contacts()
         elif kind == "devices":
             self.phones = list(event.get("devices") or [])
-            if self.mode == "phones":
-                self._show_phones()
+            if self.mode == "setup" and self.setup_step in ("scan", "pick"):
+                self._setup_seen_devices = True
+                if self.phones:
+                    self._set_setup_step("pick")
+                else:
+                    self._show_phones()
+                    self._render_setup()
         elif kind == "sent":
             key = str(event.get("thread") or self.open_key)
             if key:
@@ -363,6 +378,7 @@ class TmsgApp(App):
                 self.client.send({"cmd": "threads"})
         elif kind == "status":
             status = event.get("status") or {}
+            self.saved_address = str(status.get("phoneAddress") or "")
             self.notify_body = bool(status.get("notifyBody"))
             state = str(status.get("state") or "")
             self.link_state = state
@@ -373,13 +389,23 @@ class TmsgApp(App):
                 self._set_status("Connected: " + name if name else "Connected")
             else:
                 self._set_status(str(status.get("detail") or ""))
+            if self.mode == "setup":
+                self._follow_setup(state)
             self._follow_link(state)
         elif kind == "pair-code":
             self.pair_code = str(event.get("code") or "")
             self._set_status("Pairing code " + self.pair_code)
-            self._hint_for_mode()
+            if self.mode == "setup":
+                self._set_setup_step("code")
+            else:
+                self._hint_for_mode()
         elif kind == "error":
-            self._set_status(str(event.get("message") or "Error"))
+            message = str(event.get("message") or "Error")
+            if self.mode == "setup":
+                self.setup_note = message
+                self._render_setup()
+            else:
+                self._set_status(message)
 
     def _set_status(self, text: str) -> None:
         self.query_one("#status", Static).update(text)
@@ -422,8 +448,12 @@ class TmsgApp(App):
                 self.shown.append(row)
         self._fill(lambda row: _clip(str(row.get("name") or row.get("address") or ""), 20))
 
-    def _enter_phones(self) -> None:
-        self.mode = "phones"
+    def _enter_setup(self) -> None:
+        """Start the guided pairing flow. It scans once; Enter rescans."""
+        self.mode = "setup"
+        self.setup_step = "scan"
+        self.setup_note = ""
+        self._setup_seen_devices = False
         self.filter_text = ""
         self.filter_on = False
         box = self.query_one("#filter", Input)
@@ -431,20 +461,129 @@ class TmsgApp(App):
         box.can_focus = False
         box.value = ""
         self._show_phones()
+        self._render_setup()
         self._hint_for_mode()
-        self.client.send({"cmd": "devices"})
+        self.query_one("#threads", ThreadList).focus()
+        self.client.send({"cmd": "scan"})
+
+    def _leave_setup(self) -> None:
+        self.mode = "threads"
+        self.setup_note = ""
+        self._show_threads()
+        self._hint_for_mode()
+
+    def _set_setup_step(self, step: str) -> None:
+        self.setup_step = step
+        self.setup_note = ""
+        if step == "pick":
+            self._show_phones()
+        self._render_setup()
+        self._hint_for_mode()
+
+    def _follow_setup(self, state: str) -> None:
+        """Advance the wizard from daemon states. Failures keep their step."""
+        if state == "connected":
+            self._leave_setup()
+        elif state == "waiting_for_switches":
+            self._set_setup_step("switches")
+        elif state == "pairing" and self.pair_code:
+            self._set_setup_step("code")
+
+    def _setup_lines(self) -> list[str]:
+        if self.setup_step == "pick":
+            lines = [
+                "Setup 2 of 4: choose your iPhone",
+                "",
+                "Select your iPhone, then press Enter to pair.",
+                "If pairing stalls, press p to try the other way.",
+            ]
+        elif self.setup_step == "code":
+            code = self.pair_code
+            shown = code[:3] + " " + code[3:] if len(code) == 6 else code
+            lines = [
+                "Setup 3 of 4: confirm the code",
+                "",
+                "        " + shown,
+                "",
+                "Confirm this code on the iPhone too.",
+                "Press y here and confirm the same code on the phone.",
+            ]
+        elif self.setup_step == "switches":
+            lines = [
+                "Setup 4 of 4: flip two switches",
+                "",
+                "Paired. On the iPhone, open Settings, then Bluetooth.",
+                'Tap the "i" next to this computer and turn on:',
+                "  Show Notifications (may read Show Message Notifications)",
+                "  Sync Contacts",
+                "",
+                "Waiting for the phone. The switches can take a minute.",
+                "The invitation lasts about two minutes. If the",
+                "switches never appear, press Enter to invite again.",
+            ]
+        else:
+            lines = [
+                "Setup 1 of 4: find your iPhone",
+                "",
+                "Make sure Bluetooth is on and the phone is close.",
+                "If a phone will not connect, switch Bluetooth",
+                "off and on, then scan again.",
+            ]
+            if self._setup_seen_devices and not self.phones:
+                lines.append("No phone found. Press Enter to scan again.")
+            else:
+                lines.append("Looking for nearby phones...")
+        if self.setup_note:
+            lines += ["", self.setup_note]
+        return lines
+
+    def _render_setup(self) -> None:
+        """Draw the wizard panel. The plain text stays on setup_panel."""
+        self.setup_panel = "\n".join(self._setup_lines())
+        log = self.query_one("#transcript", Transcript)
+        log.clear()
+        log.write(self.setup_panel)
+
+    def setup_primary(self) -> None:
+        """Enter in setup: rescan, or pair the highlighted phone."""
+        if self.mode != "setup" or self._typing():
+            return
+        if self.setup_step == "scan":
+            self.setup_note = ""
+            self._render_setup()
+            self.client.send({"cmd": "scan"})
+        elif self.setup_step == "pick":
+            row = self._current()
+            if not row or not row.get("address"):
+                self.setup_note = ""
+                self._render_setup()
+                self.client.send({"cmd": "scan"})
+                return
+            self.setup_note = "Pairing with " + str(row.get("name") or row.get("address")) + "..."
+            self._render_setup()
+            self._pair_current(False)
+        elif self.setup_step == "switches":
+            address = self.saved_address
+            if not address:
+                row = self._current()
+                if row:
+                    address = str(row.get("address") or "")
+            if not address:
+                self.client.send({"cmd": "reconnect"})
+                return
+            self.setup_note = "Inviting again..."
+            self._render_setup()
+            self.client.send({"cmd": "pair", "address": address, "explicit": False})
 
     def _follow_link(self, state: str) -> None:
-        """Open the phone list until a phone is connected, then leave it."""
+        """Open setup until a phone is connected, then leave it."""
         if not self._followed:
             self._followed = True
             if state in ("not_paired", "scanning") and not self.launch_thread:
-                self._enter_phones()
+                self._enter_setup()
             return
-        if self.mode == "phones" and state == "connected":
-            self.mode = "threads"
-            self._show_threads()
-            self._hint_for_mode()
+        if self.mode == "setup" and state == "connected":
+            self._leave_setup()
 
     def _thread_prompt(self, row: dict) -> str:
         mark = "• " if row.get("unread") else ""
@@ -482,8 +621,8 @@ class TmsgApp(App):
         if self.mode == "contacts":
             self._pick_contact()
             return
-        if self.mode == "phones":
-            self._pair_current(False)
+        if self.mode == "setup":
+            self.setup_primary()
             return
         self._open_highlighted()
 
@@ -646,8 +785,9 @@ class TmsgApp(App):
         self.filter_text = event.value
         if self.mode == "contacts":
             self.client.send({"cmd": "contacts", "query": self.filter_text})
-        elif self.mode == "phones":
+        elif self.mode == "setup":
             self._show_phones()
+            self._render_setup()
         else:
             self._show_threads()
 
@@ -665,20 +805,22 @@ class TmsgApp(App):
             self.query_one("#threads", ThreadList).focus()
             if self.mode == "contacts":
                 self._show_contacts()
-            elif self.mode == "phones":
+            elif self.mode == "setup":
                 self._show_phones()
+                self._render_setup()
             else:
                 self._show_threads()
             return
         if self.pair_code:
             self.client.send({"cmd": "cancel"})
             self.pair_code = ""
-            self._hint_for_mode()
+            if self.mode == "setup":
+                self._set_setup_step("pick")
+            else:
+                self._hint_for_mode()
             return
-        if self.mode == "contacts" or self.mode == "phones":
-            self.mode = "threads"
-            self._show_threads()
-            self._hint_for_mode()
+        if self.mode == "contacts" or self.mode == "setup":
+            self._leave_setup()
             return
         self.exit()
 
@@ -695,18 +837,13 @@ class TmsgApp(App):
     def _hint_for_mode(self) -> None:
         if self.pair_code:
             self._hint(CODE_HINT)
-        elif self.mode == "phones":
-            self._hint(PHONE_HINT)
+        elif self.mode == "setup":
+            self._hint(SETUP_HINTS[self.setup_step])
         else:
             self._hint(HINT)
 
-    def action_scan(self) -> None:
-        if self._typing() or self.mode != "phones":
-            return
-        self.client.send({"cmd": "scan"})
-
     def action_pair_explicit(self) -> None:
-        if self._typing() or self.mode != "phones":
+        if self._typing() or self.mode != "setup" or self.setup_step != "pick":
             return
         self._pair_current(True)
 
