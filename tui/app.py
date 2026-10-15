@@ -204,6 +204,8 @@ class TmsgApp(App):
         self.pair_code = ""
         self.phones: list[dict] = []
         self.saved_address = ""
+        self.phone_name = ""
+        self.contacts_pending = False
         self.setup_step = "scan"
         self.setup_panel = ""
         self.setup_note = ""
@@ -376,9 +378,11 @@ class TmsgApp(App):
         elif kind == "status":
             status = event.get("status") or {}
             self.saved_address = str(status.get("phoneAddress") or "")
+            self.phone_name = str(status.get("phoneName") or "")
             self.notify_body = bool(status.get("notifyBody"))
             state = str(status.get("state") or "")
             self.link_state = state
+            self.contacts_pending = state == "connected" and status.get("contactCount") == 0
             if self.pair_code:
                 self._set_status("Pairing code " + self.pair_code)
             elif state == "connected":
@@ -386,6 +390,9 @@ class TmsgApp(App):
                 self._set_status("Connected: " + name if name else "Connected")
             else:
                 self._set_status(str(status.get("detail") or ""))
+            if self.contacts_pending:
+                line = self.query_one("#status", Static)
+                line.update(str(line.content) + " Turn on Sync Contacts to show names.")
             if self.mode == "setup":
                 self._follow_setup(state)
             self._follow_link(state)
@@ -466,11 +473,20 @@ class TmsgApp(App):
         self.query_one("#threads", ThreadList).focus()
         self.client.send({"cmd": "scan"})
 
-    def _leave_setup(self) -> None:
+    def _leave_setup(self, announce: bool = False) -> None:
+        leaving_setup = self.mode == "setup"
         self.mode = "threads"
         self.setup_note = ""
         self._show_threads()
         self._hint_for_mode()
+        if leaving_setup:
+            log = self.query_one("#transcript", Transcript)
+            log.clear()
+            if announce:
+                if self.phone_name:
+                    log.write(f"Connected to {self.phone_name}. Pick a conversation on the left.")
+                else:
+                    log.write("Connected. Pick a conversation on the left.")
 
     def _set_setup_step(self, step: str) -> None:
         self.setup_step = step
@@ -483,7 +499,7 @@ class TmsgApp(App):
     def _follow_setup(self, state: str) -> None:
         """Advance the wizard from daemon states. Failures keep their step."""
         if state == "connected":
-            self._leave_setup()
+            self._leave_setup(announce=True)
         elif state == "waiting_for_switches":
             self._set_setup_step("switches")
         elif state == "pairing" and self.pair_code:
@@ -523,6 +539,8 @@ class TmsgApp(App):
                 "  Sync Contacts",
                 "",
                 "Waiting for the phone. The switches can take a minute.",
+                "Retrying on its own — flipping a switch finishes",
+                "this step with no need to press anything.",
                 "The invitation lasts about two minutes. If the",
                 "switches never appear, press Enter to invite again.",
             ]

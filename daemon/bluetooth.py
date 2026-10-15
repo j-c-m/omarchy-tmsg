@@ -58,6 +58,11 @@ _OBEX_CANDIDATES = (
 # Otherwise every poll spends five seconds re-fetching the same photo
 # before it reaches the text that came after it.
 _STUCK_GET_COOLDOWN = 30.0
+# While the iPhone switches are pending, the message channel is
+# reopened on this interval, this many times. Flipping a switch then
+# finishes step 4 on its own; the manual retry stays as a fallback.
+_SWITCH_RETRY_DELAY = 20.0
+_SWITCH_RETRY_ATTEMPTS = 12
 # Our names on shared namespaces. The data directory uses the plugin id so
 # it cannot collide with another program also called tmsg. D-Bus object
 # path elements forbid hyphens, so the id's dashes become underscores here.
@@ -259,6 +264,7 @@ class BluetoothSession:
         self._agent_on = False
         self._advert_on = False
         self._advert_stop: asyncio.Task | None = None
+        self._switch_retry: asyncio.Task | None = None
         self._map_path = ""
         self._pbap_path = ""
         self._message_paths: dict[str, str] = {}
@@ -337,6 +343,7 @@ class BluetoothSession:
                     "phoneAddress": settings["phoneAddress"],
                     "ownNumber": settings["ownNumber"],
                     "unread": self.store.unread_count(),
+                    "contactCount": self.store.contact_count(),
                     "notifyBody": settings["notifyBody"],
                     "detail": self.detail,
                     "bluetoothReady": self.ready,
@@ -424,6 +431,7 @@ class BluetoothSession:
         """
         async with self.lock:
             self._cancel_advert_stop()
+            self._cancel_switch_retry()
             try:
                 await self._register_agent()
                 device = await self._device(address)
@@ -449,6 +457,38 @@ class BluetoothSession:
                 self.push_status()
             finally:
                 await self._unregister_agent()
+        if self.state == "waiting_for_switches":
+            self._switch_retry = self._track(self._watch_switches(address))
+
+    async def _watch_switches(self, address: str) -> None:
+        """Reopen the message channel while the iPhone switches are pending.
+
+        A flipped switch then finishes pairing on its own. When the
+        attempts run out, the invitation stops and the manual retry
+        takes over.
+        """
+        try:
+            for _ in range(_SWITCH_RETRY_ATTEMPTS):
+                await asyncio.sleep(_SWITCH_RETRY_DELAY)
+                if self.state != "waiting_for_switches":
+                    return
+                await self._start_advert()
+                try:
+                    await self._open_profiles(address, announce=False)
+                except Exception:
+                    continue
+        except asyncio.CancelledError:
+            return
+        await self._stop_advert()
+        if self.state == "waiting_for_switches":
+            self.detail = "Still waiting for the iPhone switches. Press Enter to try again."
+            self.push_status()
+
+    def _cancel_switch_retry(self) -> None:
+        task = self._switch_retry
+        self._switch_retry = None
+        if task and not task.done():
+            task.cancel()
 
     def _cancel_advert_stop(self) -> None:
         task = self._advert_stop

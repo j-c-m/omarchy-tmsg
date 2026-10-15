@@ -31,3 +31,17 @@ class DevicesCommandTests(unittest.IsolatedAsyncioTestCase):
         finally:
             messagesd.emit = original
         self.assertEqual(events, [{"event": "devices", "devices": []}])
+
+
+class StatusShapeTests(unittest.TestCase):
+    def test_status_carries_contact_count(self):
+        import tempfile
+
+        from store import Store
+
+        directory = tempfile.mkdtemp()
+        store = Store(path=Path(directory) / "messages.db")
+        try:
+            self.assertEqual(messagesd.status_from_store(store, False, "")["contactCount"], 0)
+        finally:
+            store.close()

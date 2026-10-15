@@ -411,6 +411,7 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(app.setup_step, "switches")
             self.assertIn("Show Notifications", app.setup_panel)
             self.assertIn("Sync Contacts", app.setup_panel)
+            self.assertIn("on its own", app.setup_panel)
 
     async def test_connected_leaves_setup(self):
         client = QueueClient()
@@ -426,6 +427,56 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             await client.push({"event": "status", "status": {"state": "connected", "phoneName": "Ada iPhone"}})
             await pilot.pause()
             self.assertEqual(app.mode, "threads")
+            self.assertEqual(str(app.query_one("#status").content), "Connected: Ada iPhone")
+
+    async def test_connected_clears_panel_and_says_success(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
+            await client.push({"event": "status", "status": {"state": "waiting_for_switches", "detail": "Paired."}})
+            await pilot.pause()
+            self.assertIn("Setup 4 of 4", app.setup_panel)
+            await client.push({
+                "event": "threads",
+                "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}],
+            })
+            await client.push({"event": "status", "status": {"state": "connected", "phoneName": "Ada iPhone"}})
+            await pilot.pause()
+            self.assertEqual(app.mode, "threads")
+            log = app.query_one("#transcript", Transcript)
+            panel = "\n".join(strip.text for strip in log.lines)
+            self.assertNotIn("Setup 4 of 4", panel)
+            self.assertIn("Connected", panel)
+
+    async def test_connected_without_contacts_nudges_switches(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({
+                "event": "threads",
+                "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}],
+            })
+            await client.push({
+                "event": "status",
+                "status": {"state": "connected", "phoneName": "Ada iPhone", "contactCount": 0},
+            })
+            await pilot.pause()
+            self.assertIn("Sync Contacts", str(app.query_one("#status").content))
+
+    async def test_connected_with_contacts_shows_plain_status(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({
+                "event": "threads",
+                "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}],
+            })
+            await client.push({
+                "event": "status",
+                "status": {"state": "connected", "phoneName": "Ada iPhone", "contactCount": 2},
+            })
+            await pilot.pause()
             self.assertEqual(str(app.query_one("#status").content), "Connected: Ada iPhone")
 
     async def test_escape_leaves_setup_and_stays_out(self):

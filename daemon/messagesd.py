@@ -66,6 +66,7 @@ def status_from_store(store: Store, ready: bool, detail: str) -> dict:
         "phoneAddress": settings["phoneAddress"],
         "ownNumber": settings["ownNumber"],
         "unread": store.unread_count(),
+        "contactCount": store.contact_count(),
         "notifyBody": settings["notifyBody"],
         "detail": detail,
         "bluetoothReady": ready,
