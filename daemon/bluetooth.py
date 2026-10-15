@@ -415,13 +415,12 @@ class BluetoothSession:
                 self.emit({"event": "error", "message": self.detail})
             self.push_status()
 
-    async def pair(self, address: str, explicit: bool) -> None:
+    async def pair(self, address: str) -> None:
         """Bond the phone, then open texts and contacts.
 
-        Enter bonds without connecting first. Holding a profile
-        connection open makes iOS drop the link, while the message
-        channel brings the link up on demand. p keeps the old
-        connect-first behavior as a fallback.
+        Bonding never connects first. Holding a profile connection
+        open makes iOS drop the link, while the message channel
+        brings the link up on demand.
         """
         async with self.lock:
             self._cancel_advert_stop()
@@ -434,11 +433,7 @@ class BluetoothSession:
                 except Exception:
                     bonded = False
                 if not bonded:
-                    if explicit:
-                        await device.call_connect()
-                        await self._drop_audio(address)
-                    else:
-                        await device.call_pair()
+                    await device.call_pair()
                 await self._untrust(address)
                 self.store.set_phone(address, name)
                 self.detail = "Paired. Waiting for the iPhone switches."

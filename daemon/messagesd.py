@@ -192,7 +192,7 @@ async def dispatch(name: str, command: dict, store: Store, session) -> None:
         address = str(command.get("address") or "")
         if not _MAC.match(address):
             raise ValueError("Pick a phone from the scan list.")
-        await session.pair(address, bool(command.get("explicit")))
+        await session.pair(address)
         return
 
     if name == "confirm":

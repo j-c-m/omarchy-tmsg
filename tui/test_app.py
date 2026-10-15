@@ -382,28 +382,7 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             await pilot.pause()
         self.assertEqual(
             [item for item in client.sent if item["cmd"] == "pair"],
-            [{"cmd": "pair", "address": "AA:BB:CC:DD:EE:FF", "explicit": False}],
-        )
-
-    async def test_p_pairs_without_connecting_first(self):
-        client = QueueClient()
-        app = TmsgApp(client=client)
-        async with app.run_test(size=(100, 24)) as pilot:
-            await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
-            await client.push({
-                "event": "devices",
-                "devices": [
-                    {"address": "AA:BB:CC:DD:EE:FF", "name": "Ada iPhone", "paired": False},
-                    {"address": "11:22:33:44:55:66", "name": "Other Phone", "paired": False},
-                ],
-            })
-            await pilot.pause()
-            await pilot.press("j")
-            await pilot.press("p")
-            await pilot.pause()
-        self.assertEqual(
-            [item for item in client.sent if item["cmd"] == "pair"],
-            [{"cmd": "pair", "address": "11:22:33:44:55:66", "explicit": True}],
+            [{"cmd": "pair", "address": "AA:BB:CC:DD:EE:FF"}],
         )
 
     async def test_pairing_code_shows_big_and_y_confirms(self):
@@ -477,7 +456,7 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
             await pilot.press("enter")
             await pilot.pause()
         self.assertIn(
-            {"cmd": "pair", "address": "AA:BB:CC:DD:EE:FF", "explicit": False},
+            {"cmd": "pair", "address": "AA:BB:CC:DD:EE:FF"},
             client.sent,
         )
 

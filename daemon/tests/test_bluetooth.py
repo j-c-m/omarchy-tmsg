@@ -55,25 +55,15 @@ class PairBondTests(unittest.IsolatedAsyncioTestCase):
         session._schedule_advert_stop = mock.Mock()
         return session, store, events, device
 
-    async def test_enter_bonds_without_connecting_first(self):
+    async def test_pair_bonds_without_connecting(self):
         directory = tempfile.mkdtemp()
         session, store, _events, device = await self._session(directory)
         try:
-            await session.pair("AA:BB:CC:DD:EE:FF", False)
+            await session.pair("AA:BB:CC:DD:EE:FF")
             device.call_pair.assert_awaited_once()
             device.call_connect.assert_not_awaited()
             self.assertEqual(store.settings()["phoneAddress"], "AA:BB:CC:DD:EE:FF")
             self.assertEqual(session.state, "waiting_for_switches")
-        finally:
-            store.close()
-
-    async def test_p_keeps_connect_first_as_fallback(self):
-        directory = tempfile.mkdtemp()
-        session, store, _events, device = await self._session(directory)
-        try:
-            await session.pair("AA:BB:CC:DD:EE:FF", True)
-            device.call_connect.assert_awaited_once()
-            device.call_pair.assert_not_awaited()
         finally:
             store.close()
 

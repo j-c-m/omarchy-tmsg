@@ -33,7 +33,7 @@ RECONNECT_DELAY = 1.0
 CODE_HINT = "y accept    n reject    esc cancel"
 SETUP_HINTS = {
     "scan": "enter scan again    esc leave setup",
-    "pick": "j/k move    enter pair    p other way    / filter    esc leave setup",
+    "pick": "j/k move    enter pair    / filter    esc leave setup",
     "code": CODE_HINT,
     "confirming": "esc leave setup",
     "switches": "enter invite again    esc leave setup",
@@ -47,7 +47,6 @@ class ThreadList(OptionList):
         Binding("down", "cursor_down", "down"),
         Binding("up", "cursor_up", "up"),
         Binding("enter", "select", "open"),
-        Binding("p", "pair_explicit", "pair"),
         Binding("t", "notify", "notification text"),
     ]
 
@@ -57,9 +56,6 @@ class ThreadList(OptionList):
             app.setup_primary()
             return
         super().action_select()
-
-    def action_pair_explicit(self) -> None:
-        self.app.action_pair_explicit()
 
     def action_notify(self) -> None:
         self.app.action_notify()
@@ -499,7 +495,6 @@ class TmsgApp(App):
                 "Setup 2 of 4: choose your iPhone",
                 "",
                 "Select your iPhone, then press Enter to pair.",
-                "If pairing stalls, press p to connect first.",
             ]
         elif self.setup_step == "code":
             code = self.pair_code
@@ -571,7 +566,7 @@ class TmsgApp(App):
                 return
             self.setup_note = "Pairing with " + str(row.get("name") or row.get("address")) + "..."
             self._render_setup()
-            self._pair_current(False)
+            self._pair_current()
         elif self.setup_step == "switches":
             address = self.saved_address
             if not address:
@@ -583,7 +578,7 @@ class TmsgApp(App):
                 return
             self.setup_note = "Inviting again..."
             self._render_setup()
-            self.client.send({"cmd": "pair", "address": address, "explicit": False})
+            self.client.send({"cmd": "pair", "address": address})
 
     def _follow_link(self, state: str) -> None:
         """Open setup until a phone is connected, then leave it."""
@@ -852,16 +847,11 @@ class TmsgApp(App):
         else:
             self._hint(HINT)
 
-    def action_pair_explicit(self) -> None:
-        if self._typing() or self.mode != "setup" or self.setup_step != "pick":
-            return
-        self._pair_current(True)
-
-    def _pair_current(self, explicit: bool) -> None:
+    def _pair_current(self) -> None:
         row = self._current()
         if not row or not row.get("address"):
             return
-        self.client.send({"cmd": "pair", "address": str(row["address"]), "explicit": explicit})
+        self.client.send({"cmd": "pair", "address": str(row["address"])})
 
     def action_accept_pair(self) -> None:
         if self._typing() or not self.pair_code:
