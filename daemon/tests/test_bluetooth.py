@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from bluetooth import BluetoothSession, _session_transfer_paths
+from bluetooth import ADVERT_PATH, AGENT_PATH, BluetoothSession, _session_transfer_paths
 from store import Store
 
 
@@ -27,6 +27,15 @@ class SessionTransferTests(unittest.TestCase):
             "/org/bluez/obex/session2/transfer1": {"org.bluez.obex.Transfer1": {}},
         }
         self.assertEqual(_session_transfer_paths("/org/bluez/obex/session1", objects), [])
+
+
+class DbusPathTests(unittest.TestCase):
+    def test_agent_paths_share_plugin_namespace(self):
+        for path in (AGENT_PATH, ADVERT_PATH):
+            self.assertTrue(path.startswith("/io/github/j_c_m/tmsg/"))
+            # Hyphens are illegal in a D-Bus object path element.
+            self.assertNotIn("-", path)
+            self.assertTrue(all(part for part in path.split("/")[1:]))
 
 
 class IngestPreviewTests(unittest.TestCase):

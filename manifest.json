@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.nikolaos-gkionis.messages",
+  "id": "io.github.j-c-m.tmsg",
   "name": "tMsg",
   "version": "1.0.0",
-  "author": "nikolaos",
+  "author": "j-c-m",
   "license": "MIT",
   "description": "Read and send iPhone texts over Bluetooth.",
-  "repository": "https://github.com/Nikolaos-Gkionis/omarchy-imessage",
+  "repository": "https://github.com/j-c-m/omarchy-tmsg",
   "kinds": ["service", "bar-widget"],
   "keepLoaded": true,
   "entryPoints": {

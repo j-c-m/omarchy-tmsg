@@ -12,8 +12,8 @@ import os
 import sys
 
 def socket_path() -> str:
-    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/imsg-{os.getuid()}"
-    return os.path.join(runtime, "nikolaos-messages", "messagesd.sock")
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/io.github.j-c-m.tmsg-{os.getuid()}"
+    return os.path.join(runtime, "io.github.j-c-m.tmsg", "messagesd.sock")
 
 
 class Hub:

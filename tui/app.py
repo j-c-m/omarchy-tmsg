@@ -105,7 +105,7 @@ class Transcript(RichLog):
             reflow()
 
 
-class ImsgApp(App):
+class TmsgApp(App):
     TITLE = "tMsg"
     DEFAULT_CSS = """
     #status, #hint {
@@ -807,7 +807,7 @@ def main(argv: list[str] | None = None) -> None:
     sock = claim(thread)
     if sock is None:
         return
-    app = ImsgApp(standalone=standalone, thread=thread, summon_sock=sock)
+    app = TmsgApp(standalone=standalone, thread=thread, summon_sock=sock)
     app.run()
 
 

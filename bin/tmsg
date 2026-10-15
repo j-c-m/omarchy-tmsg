@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start the iMsg terminal screen from this checkout.
+# Start the tMsg terminal screen from this checkout.
 # A second run focuses the screen that is already open.
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd) || exit 1
 cd "$root" || exit 1

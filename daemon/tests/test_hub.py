@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from hub import Hub
+from hub import Hub, socket_path
 
 
 class HubTests(unittest.IsolatedAsyncioTestCase):
@@ -50,6 +50,9 @@ class HubTests(unittest.IsolatedAsyncioTestCase):
         await writer.wait_closed()
         hub.server.close()
         await hub.server.wait_closed()
+
+    def test_socket_path_uses_plugin_namespace(self):
+        self.assertIn("io.github.j-c-m.tmsg", socket_path())
 
 
 if __name__ == "__main__":

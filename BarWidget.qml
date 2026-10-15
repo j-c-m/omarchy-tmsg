@@ -6,7 +6,7 @@ import qs.Ui
 // the terminal screen.
 BarWidget {
   id: root
-  moduleName: "io.github.nikolaos-gkionis.messages"
+  moduleName: "io.github.j-c-m.tmsg"
 
   readonly property var svc: (bar && bar.shell && bar.shell.serviceFor)
     ? bar.shell.serviceFor(moduleName) : null

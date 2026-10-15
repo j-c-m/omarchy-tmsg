@@ -58,6 +58,11 @@ _OBEX_CANDIDATES = (
 # Otherwise every poll spends five seconds re-fetching the same photo
 # before it reaches the text that came after it.
 _STUCK_GET_COOLDOWN = 30.0
+# Our names on shared namespaces. The data directory uses the plugin id so
+# it cannot collide with another program also called tmsg. D-Bus object
+# path elements forbid hyphens, so the id's dashes become underscores here.
+AGENT_PATH = "/io/github/j_c_m/tmsg/Messages/Agent"
+ADVERT_PATH = "/io/github/j_c_m/tmsg/Messages/Advert"
 
 
 def _unwrap(value):
@@ -289,8 +294,8 @@ class BluetoothSession:
         self._system = await MessageBus(bus_type=BusType.SYSTEM).connect()
         self._session_bus = await MessageBus(bus_type=BusType.SESSION).connect()
         self._agent = PairAgent(self._show_code)
-        self._system.export("/com/nikolaos/Messages/Agent", self._agent)
-        self._system.export("/com/nikolaos/Messages/Advert", SolicitationAdvert())
+        self._system.export(AGENT_PATH, self._agent)
+        self._system.export(ADVERT_PATH, SolicitationAdvert())
         self.ready = True
         # A phone paired in the system Bluetooth settings is already known.
         # Show it immediately instead of waiting for a new scan.
@@ -1287,9 +1292,9 @@ class BluetoothSession:
         if self._agent_on:
             return
         manager = await self._iface("org.bluez", "/org/bluez", "org.bluez.AgentManager1", self._system)
-        await manager.call_register_agent("/com/nikolaos/Messages/Agent", "DisplayYesNo")
+        await manager.call_register_agent(AGENT_PATH, "DisplayYesNo")
         try:
-            await manager.call_request_default_agent("/com/nikolaos/Messages/Agent")
+            await manager.call_request_default_agent(AGENT_PATH)
         except Exception:
             pass
         self._agent_on = True
@@ -1299,7 +1304,7 @@ class BluetoothSession:
             return
         try:
             manager = await self._iface("org.bluez", "/org/bluez", "org.bluez.AgentManager1", self._system)
-            await manager.call_unregister_agent("/com/nikolaos/Messages/Agent")
+            await manager.call_unregister_agent(AGENT_PATH)
         except Exception:
             pass
         self._agent_on = False
@@ -1316,7 +1321,7 @@ class BluetoothSession:
                 continue
             try:
                 manager = await self._iface("org.bluez", path, "org.bluez.LEAdvertisingManager1", self._system)
-                await manager.call_register_advertisement("/com/nikolaos/Messages/Advert", {})
+                await manager.call_register_advertisement(ADVERT_PATH, {})
                 self._advert_on = True
             except Exception:
                 self.detail = "Paired, but the message switches may not appear until the phone is reopened in Bluetooth settings."
@@ -1331,7 +1336,7 @@ class BluetoothSession:
                 if "org.bluez.LEAdvertisingManager1" not in interfaces:
                     continue
                 manager = await self._iface("org.bluez", path, "org.bluez.LEAdvertisingManager1", self._system)
-                await manager.call_unregister_advertisement("/com/nikolaos/Messages/Advert")
+                await manager.call_unregister_advertisement(ADVERT_PATH)
         except Exception:
             pass
         self._advert_on = False

@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -24,6 +25,13 @@ class StoreTests(unittest.TestCase):
     def test_database_file_is_private(self):
         mode = os.stat(self.db.path).st_mode & 0o777
         self.assertEqual(mode, 0o600)
+
+    def test_directories_use_plugin_namespace(self):
+        with tempfile.TemporaryDirectory() as data, tempfile.TemporaryDirectory() as runtime:
+            env = {"XDG_DATA_HOME": data, "XDG_RUNTIME_DIR": runtime}
+            with mock.patch.dict(os.environ, env):
+                self.assertEqual(store.data_dir().name, "io.github.j-c-m.tmsg")
+                self.assertEqual(store.runtime_dir().name, "io.github.j-c-m.tmsg")
 
     def test_threads_group_and_present_attachments(self):
         self.db.set_own_number("+15550001111")

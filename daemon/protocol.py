@@ -474,7 +474,7 @@ def _apply_vcard_line(current: dict | None, raw_line: str) -> None:
 def tui_launcher() -> str:
     """Script that starts the terminal screen from this checkout."""
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(root, "bin", "imsg-tui")
+    return os.path.join(root, "bin", "tmsg")
 
 
 def notification_command(title: str, body: str, thread: str, program: str = "omarchy-notification-send") -> list[str]:

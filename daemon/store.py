@@ -19,7 +19,7 @@ from protocol import address_from_thread, present_message, thread_key
 def data_dir() -> Path:
     """Directory that holds the database. Created as mode 0700."""
     root = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
-    path = Path(root) / "nikolaos-messages"
+    path = Path(root) / "io.github.j-c-m.tmsg"
     path.mkdir(parents=True, exist_ok=True)
     os.chmod(path, 0o700)
     return path
@@ -27,8 +27,8 @@ def data_dir() -> Path:
 
 def runtime_dir() -> Path:
     """Directory for short-lived files such as an outgoing bMessage."""
-    root = os.environ.get("XDG_RUNTIME_DIR") or str(Path("/tmp") / f"nikolaos-messages-{os.getuid()}")
-    path = Path(root) / "nikolaos-messages"
+    root = os.environ.get("XDG_RUNTIME_DIR") or str(Path("/tmp") / f"io.github.j-c-m.tmsg-{os.getuid()}")
+    path = Path(root) / "io.github.j-c-m.tmsg"
     path.mkdir(parents=True, exist_ok=True)
     os.chmod(path, 0o700)
     return path

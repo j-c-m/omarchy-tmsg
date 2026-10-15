@@ -71,7 +71,7 @@ class InstanceTests(unittest.TestCase):
 
     def test_the_terminal_runs_the_shell_launcher(self) -> None:
         command = terminal_command("tel:+15550001111", False)
-        self.assertTrue(command[1].endswith("/bin/imsg-tui"))
+        self.assertTrue(command[1].endswith("/bin/tmsg"))
         self.assertEqual(command[2:], ["--inside", "--thread", "tel:+15550001111"])
         self.assertNotIn("python3", command)
         self.assertNotIn(sys.executable, command)
@@ -80,6 +80,9 @@ class InstanceTests(unittest.TestCase):
         pids = ancestor_pids()
         self.assertEqual(pids[0], os.getpid())
         self.assertIn(os.getppid(), pids)
+
+    def test_socket_path_uses_plugin_namespace(self) -> None:
+        self.assertIn("io.github.j-c-m.tmsg", socket_path())
 
 
 if __name__ == "__main__":

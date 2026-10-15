@@ -22,7 +22,7 @@ Item {
   }
 
   function launchTui(thread) {
-    var args = [root.fileUrl("bin/imsg-tui")]
+    var args = [root.fileUrl("bin/tmsg")]
     if (thread)
       args.push("--thread", String(thread))
     Quickshell.execDetached(args)

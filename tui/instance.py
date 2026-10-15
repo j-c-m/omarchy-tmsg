@@ -13,8 +13,8 @@ import subprocess
 
 
 def socket_path() -> str:
-    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/imsg-{os.getuid()}"
-    return os.path.join(runtime, "nikolaos-messages", "tui.sock")
+    runtime = os.environ.get("XDG_RUNTIME_DIR") or f"/tmp/io.github.j-c-m.tmsg-{os.getuid()}"
+    return os.path.join(runtime, "io.github.j-c-m.tmsg", "tui.sock")
 
 
 def terminal_program() -> str:
@@ -24,7 +24,7 @@ def terminal_program() -> str:
 
 def launcher_script() -> str:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(root, "bin", "imsg-tui")
+    return os.path.join(root, "bin", "tmsg")
 
 
 def terminal_command(thread: str, standalone: bool) -> list[str]:

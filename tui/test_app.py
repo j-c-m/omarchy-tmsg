@@ -12,7 +12,7 @@ try:
 except ImportError:  # pragma: no cover
     raise unittest.SkipTest("textual is not installed")
 
-from tui.app import HINT, Composer, ImsgApp, ThreadList, Transcript, render_message
+from tui.app import HINT, Composer, TmsgApp, ThreadList, Transcript, render_message
 
 
 def _background_columns(text, prefix: str) -> list[list[int]]:
@@ -63,7 +63,7 @@ class QueueClient:
 
 class ThemeTests(unittest.TestCase):
     def test_the_screen_uses_terminal_ansi_colors(self):
-        app = ImsgApp(client=QueueClient())
+        app = TmsgApp(client=QueueClient())
         self.assertTrue(app.ansi_color)
         self.assertEqual(app.theme, "ansi-dark")
 
@@ -108,7 +108,7 @@ class LinkTests(unittest.TestCase):
 class OpenTests(unittest.IsolatedAsyncioTestCase):
     async def test_j_moves_the_contact_while_the_transcript_is_focused(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -129,7 +129,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_j_types_inside_a_reply(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -147,7 +147,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_moving_onto_a_conversation_marks_it_read_and_loads_it(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -175,7 +175,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_notification_thread_opens_that_conversation(self):
         client = QueueClient()
-        app = ImsgApp(client=client, thread="tel:+15550002222")
+        app = TmsgApp(client=client, thread="tel:+15550002222")
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -196,7 +196,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
         original = instance.focus_this_window
         instance.focus_this_window = lambda: focused.append(True)
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         try:
             async with app.run_test(size=(100, 24)) as pilot:
                 await client.push({
@@ -216,7 +216,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_t_toggles_notification_text(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "status", "status": {"state": "connected", "phoneName": "JM iPhone", "notifyBody": False}})
             await client.push({
@@ -232,7 +232,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_contacts_list_is_twenty_characters_wide(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "threads", "threads": [{"key": "tel:+15550001111", "label": "Ada", "unread": 0}]})
             await pilot.pause()
@@ -274,7 +274,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_resizing_the_window_reflows_the_conversation(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -310,7 +310,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_reply_starts_at_one_line_and_grows_to_five(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -341,7 +341,7 @@ class OpenTests(unittest.IsolatedAsyncioTestCase):
 class PairTests(unittest.IsolatedAsyncioTestCase):
     async def test_an_unpaired_phone_lists_phones_and_enter_pairs(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "status", "status": {"state": "not_paired", "detail": "Select your iPhone."}})
             await client.push({
@@ -366,7 +366,7 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_p_pairs_without_connecting_first(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
             await client.push({
@@ -387,7 +387,7 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_enter_on_an_empty_phone_list_scans(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
             await pilot.pause()
@@ -397,7 +397,7 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_phone_filter_hides_other_phones(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "status", "status": {"state": "not_paired", "detail": ""}})
             await client.push({
@@ -417,7 +417,7 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_connected_phone_leaves_the_phone_list(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -434,7 +434,7 @@ class PairTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_pairing_code_accepts_rejects_and_cancels(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({"event": "pair-code", "code": "123456"})
             await client.push({"event": "status", "status": {"state": "pairing", "detail": "Confirm this code on the iPhone too."}})
@@ -475,7 +475,7 @@ class ReconnectTests(unittest.IsolatedAsyncioTestCase):
                 raise OSError("daemon is restarting")
             return second
 
-        app = ImsgApp(client=first)
+        app = TmsgApp(client=first)
         threads = [{"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"}]
         with (
             mock.patch("tui.app.connect", fake_connect),
@@ -518,7 +518,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_shift_enter_inserts_a_newline_and_enter_sends(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             composer = await self._open_reply(app, client, pilot)
             await pilot.press("h", "i")
@@ -538,7 +538,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_keeps_the_box_active_until_escape(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             composer = await self._open_reply(app, client, pilot)
             await pilot.press("h", "i")
@@ -562,7 +562,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_ctrl_j_inserts_a_newline_where_shift_enter_is_missing(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             composer = await self._open_reply(app, client, pilot)
             await pilot.press("a")
@@ -574,7 +574,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_too_long_message_is_blocked_with_a_count(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             composer = await self._open_reply(app, client, pilot)
             composer.insert("x" * 1001)
@@ -588,7 +588,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_composer_shows_title_hint_and_counter(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             composer = await self._open_reply(app, client, pilot)
             self.assertEqual(str(composer.border_title), "Reply")
@@ -606,7 +606,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_reply_targets_the_open_conversation(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -627,7 +627,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_with_cleared_open_key_falls_back_to_highlight(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await client.push({
                 "event": "threads",
@@ -652,7 +652,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_send_with_no_conversation_keeps_the_text(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             composer = app.query_one("#composer", Composer)
             composer.focus()
@@ -667,7 +667,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_phones_mode_never_sends_to_a_stale_thread(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             app.open_key = "tel:+15550001111"
             app.mode = "phones"
@@ -683,7 +683,7 @@ class ComposerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_a_new_message_titles_the_box_differently(self):
         client = QueueClient()
-        app = ImsgApp(client=client)
+        app = TmsgApp(client=client)
         async with app.run_test(size=(100, 24)) as pilot:
             await pilot.press("n")
             await pilot.pause()

@@ -13,7 +13,7 @@ The plugin runs inside `omarchy-shell`. It does not start a second Quickshell.
 
 ```sh
 omarchy pkg add bluez-obex python-dbus-next
-omarchy plugin add https://github.com/Nikolaos-Gkionis/omarchy-imessage.git --enable
+omarchy plugin add https://github.com/j-c-m/omarchy-tmsg.git --enable
 ```
 
 `omarchy plugin add` clones the repo, checks `manifest.json`, and leaves the code for you to read before you enable it. Plugins are unsandboxed and run as your user for the whole desktop session. Read the code before enabling it.
@@ -33,9 +33,9 @@ Install `python-textual` first. `--standalone` starts a daemon when the plugin i
 ```sh
 omarchy plugin validate .
 mkdir -p ~/.config/omarchy/plugins
-ln -s "$PWD" ~/.config/omarchy/plugins/io.github.nikolaos-gkionis.messages
+ln -s "$PWD" ~/.config/omarchy/plugins/io.github.j-c-m.tmsg
 omarchy-shell shell rescanPlugins
-omarchy plugin enable io.github.nikolaos-gkionis.messages
+omarchy plugin enable io.github.j-c-m.tmsg
 omarchy restart shell
 ```
 
@@ -83,21 +83,21 @@ SMS and iMessage look the same on this link. A sent message is not labeled as on
 
 ## Where your data lives
 
-Texts, contacts, and the paired phone are stored in `~/.local/share/nikolaos-messages/messages.db`. The directory is private to your user (`0700`) and the file is too (`0600`). Nothing is sent to a server.
+Texts, contacts, and the paired phone are stored in `~/.local/share/io.github.j-c-m.tmsg/messages.db`. The directory is private to your user (`0700`) and the file is too (`0600`). Nothing is sent to a server.
 
 The daemon is a normal user process. It does not use sudo. Commands are an argument list, so a text cannot be run as a shell command. Logs record connection state only. They do not record message text, contact names, pairing codes, or your number.
 
 ## Remove
 
 ```sh
-omarchy plugin remove io.github.nikolaos-gkionis.messages
+omarchy plugin remove io.github.j-c-m.tmsg
 ```
 
 That removes the installed copy in `~/.config/omarchy/plugins/`. The GitHub repository stays. To also forget the phone and the saved texts:
 
 ```sh
 bluetoothctl remove AA:BB:CC:DD:EE:FF
-rm -rf ~/.local/share/nikolaos-messages
+rm -rf ~/.local/share/io.github.j-c-m.tmsg
 ```
 
 Replace the address with the phone's Bluetooth address. You can see paired devices with `bluetoothctl devices`.
