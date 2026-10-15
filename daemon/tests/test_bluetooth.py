@@ -30,6 +30,94 @@ class SessionTransferTests(unittest.TestCase):
         self.assertEqual(_session_transfer_paths("/org/bluez/obex/session1", objects), [])
 
 
+class SwitchRetryTests(unittest.IsolatedAsyncioTestCase):
+    async def _waiting_session(self, directory: str):
+        from store import Store
+
+        store = Store(path=Path(directory) / "messages.db")
+        store.set_phone("AA:BB:CC:DD:EE:FF", "Ada iPhone")
+        session = BluetoothSession(store, lambda event: None)
+        session.state = "waiting_for_switches"
+        session._start_advert = mock.AsyncMock()
+        session._stop_advert = mock.AsyncMock()
+        return session, store
+
+    async def test_open_retries_until_connected(self):
+        import bluetooth
+
+        directory = tempfile.mkdtemp()
+        session, store = await self._waiting_session(directory)
+        opens = 0
+
+        async def fake_open(address: str, announce: bool = False) -> None:
+            nonlocal opens
+            opens += 1
+            if opens >= 2:
+                session.state = "connected"
+
+        session._open_profiles = fake_open
+        try:
+            with mock.patch.object(bluetooth, "_SWITCH_RETRY_DELAY", 0.0), mock.patch.object(
+                bluetooth, "_SWITCH_RETRY_ATTEMPTS", 3
+            ):
+                await session._watch_switches("AA:BB:CC:DD:EE:FF")
+            self.assertEqual(opens, 2)
+        finally:
+            store.close()
+
+    async def test_pair_starts_watching_the_switches(self):
+        import asyncio
+
+        import bluetooth
+        from store import Store
+
+        directory = tempfile.mkdtemp()
+        store = Store(path=Path(directory) / "messages.db")
+        session = BluetoothSession(store, lambda event: None)
+        device = mock.AsyncMock()
+        device.get_paired.return_value = False
+        session._device = mock.AsyncMock(return_value=device)
+        session._device_name = mock.AsyncMock(return_value="Ada iPhone")
+        for name in ("_register_agent", "_unregister_agent", "_untrust", "_start_advert", "_stop_advert"):
+            setattr(session, name, mock.AsyncMock())
+        session._schedule_advert_stop = mock.Mock()
+        opens = 0
+
+        async def fake_open(address: str, announce: bool = False) -> None:
+            nonlocal opens
+            opens += 1
+
+        session._open_profiles = fake_open
+        try:
+            with mock.patch.object(bluetooth, "_SWITCH_RETRY_DELAY", 0.0), mock.patch.object(
+                bluetooth, "_SWITCH_RETRY_ATTEMPTS", 2
+            ):
+                await session.pair("AA:BB:CC:DD:EE:FF")
+                self.assertIsNotNone(session._switch_retry)
+                await asyncio.wait_for(session._switch_retry, timeout=5)
+            self.assertEqual(opens, 3)
+            self.assertIn("Press Enter", session.detail)
+        finally:
+            store.close()
+
+    async def test_giving_up_leaves_a_manual_retry(self):
+        import bluetooth
+
+        directory = tempfile.mkdtemp()
+        session, store = await self._waiting_session(directory)
+        session._open_profiles = mock.AsyncMock()
+        try:
+            with mock.patch.object(bluetooth, "_SWITCH_RETRY_DELAY", 0.0), mock.patch.object(
+                bluetooth, "_SWITCH_RETRY_ATTEMPTS", 2
+            ):
+                await session._watch_switches("AA:BB:CC:DD:EE:FF")
+            self.assertEqual(session.state, "waiting_for_switches")
+            session._stop_advert.assert_awaited()
+            self.assertIn("Press Enter", session.detail)
+        finally:
+            store.close()
+
+
 class DbusPathTests(unittest.TestCase):
     def test_agent_paths_share_plugin_namespace(self):
         for path in (AGENT_PATH, ADVERT_PATH):
