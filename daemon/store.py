@@ -433,7 +433,7 @@ class Store:
               )
               GROUP BY thread_key
             ) latest ON latest.id = m.id
-            ORDER BY unread DESC, m.timestamp DESC, m.id DESC
+            ORDER BY m.timestamp DESC, m.id DESC
             """
         ).fetchall()
         seen = set()

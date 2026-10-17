@@ -86,7 +86,7 @@ class StoreTests(unittest.TestCase):
         self.db.mark_thread_read(threads[0]["key"])
         self.assertEqual(self.db.unread_count(), 0)
 
-    def test_unread_conversations_sort_first(self):
+    def test_conversations_sort_by_timestamp(self):
         self.db.upsert_message(
             external_id="old-unread",
             address="+15551110000",
@@ -110,7 +110,7 @@ class StoreTests(unittest.TestCase):
             peer_label="Newer",
         )
         labels = [row["label"] for row in self.db.threads()]
-        self.assertEqual(labels, ["Older", "Newer"])
+        self.assertEqual(labels, ["Newer", "Older"])
 
     def test_contact_search(self):
         self.db.replace_contacts(
