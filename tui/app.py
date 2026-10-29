@@ -607,15 +607,20 @@ class TmsgApp(App):
     def _fill(self, prompt) -> None:
         widget = self.query_one("#threads", ThreadList)
         previous = self.open_key
+        old = widget.highlighted
         self._filling = True
         widget.clear_options()
         for row in self.shown:
             widget.add_option(Option(prompt(row)))
         restore = 0
+        found = False
         for index, row in enumerate(self.shown):
             if row.get("key") == previous or row.get("address") == previous:
                 restore = index
+                found = True
                 break
+        if not found and old is not None and self.shown:
+            restore = min(max(old, 0), len(self.shown) - 1)
         if self.shown:
             widget.highlighted = restore
         self._filling = False

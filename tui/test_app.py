@@ -631,6 +631,43 @@ class SetupTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(app.pair_code, "")
 
 
+class DeleteTests(unittest.IsolatedAsyncioTestCase):
+    async def test_delete_keeps_position_and_opens_the_next_conversation(self):
+        client = QueueClient()
+        app = TmsgApp(client=client)
+        async with app.run_test(size=(100, 24)) as pilot:
+            await client.push({
+                "event": "threads",
+                "threads": [
+                    {"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"},
+                    {"key": "tel:+15550002222", "label": "Bo", "unread": 0, "preview": "yo"},
+                    {"key": "tel:+15550003333", "label": "Cy", "unread": 0, "preview": "hey"},
+                ],
+            })
+            await pilot.pause()
+            await pilot.press("j")
+            await pilot.pause()
+            self.assertEqual(app.open_key, "tel:+15550002222")
+            await pilot.press("ctrl+d")
+            await pilot.pause()
+            self.assertEqual(
+                client.sent[-1],
+                {"cmd": "delete-thread", "thread": "tel:+15550002222"},
+            )
+            await client.push({
+                "event": "threads",
+                "threads": [
+                    {"key": "tel:+15550001111", "label": "Ada", "unread": 0, "preview": "hi"},
+                    {"key": "tel:+15550003333", "label": "Cy", "unread": 0, "preview": "hey"},
+                ],
+            })
+            await pilot.pause()
+            self.assertEqual(app.query_one("#threads").highlighted, 1)
+            self.assertEqual(app.open_key, "tel:+15550003333")
+        loads = [item for item in client.sent if item["cmd"] == "messages"]
+        self.assertIn({"cmd": "messages", "thread": "tel:+15550003333"}, loads)
+
+
 class ReconnectTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_dropped_daemon_reconnects_and_reloads(self):
         from unittest import mock
