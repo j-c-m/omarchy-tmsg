@@ -75,11 +75,54 @@ def address_for_pids(clients: list[dict], pids: list[int]) -> str:
     return ""
 
 
-def focus_address(address: str) -> None:
+def workspace_for_address(clients: list[dict], address: str) -> str:
+    """Workspace id of the window, or "" when it is off plain workspaces."""
+    if not address:
+        return ""
+    for client in clients:
+        if str(client.get("address") or "") != address:
+            continue
+        workspace = client.get("workspace")
+        ident = workspace.get("id") if isinstance(workspace, dict) else None
+        try:
+            number = int(ident)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return ""
+        return str(number) if number > 0 else ""
+    return ""
+
+
+def normalize_address(address: str) -> str:
+    """Hyprland expects window addresses with the 0x prefix."""
+    return address if address.startswith("0x") else f"0x{address}"
+
+
+def lua_focus_command(address: str) -> list[str]:
+    """Omarchy Lua form: focuses the window and moves to its workspace."""
+    return ["hyprctl", "dispatch", f"hl.dsp.focus({{ window = 'address:{normalize_address(address)}' }})"]
+
+
+def focus_command(address: str, workspace: str) -> list[str]:
+    """Legacy fallback: switch workspace first, then focus the window."""
+    target = f"address:{normalize_address(address)}"
+    if workspace:
+        return ["hyprctl", "--batch", f"dispatch workspace {workspace};dispatch focuswindow {target}"]
+    return ["hyprctl", "dispatch", "focuswindow", target]
+
+
+def focus_address(address: str, workspace: str = "") -> None:
     if not address:
         return
+    primary = subprocess.run(
+        lua_focus_command(address),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if primary.returncode == 0:
+        return
     subprocess.run(
-        ["hyprctl", "dispatch", "focuswindow", f"address:{address}"],
+        focus_command(address, workspace),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
@@ -87,7 +130,9 @@ def focus_address(address: str) -> None:
 
 
 def focus_this_window() -> None:
-    focus_address(address_for_pids(_hypr_clients(), ancestor_pids()))
+    clients = _hypr_clients()
+    address = address_for_pids(clients, ancestor_pids())
+    focus_address(address, workspace_for_address(clients, address))
 
 
 def hand_off(thread: str) -> bool:

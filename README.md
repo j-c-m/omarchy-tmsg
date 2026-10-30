@@ -28,7 +28,7 @@ The terminal screen is a client of the plugin daemon. Restart the shell once so 
 python3 -m tui
 ```
 
-Install `python-textual` first. `--standalone` starts a daemon when the plugin is not running. Do not use it while the plugin's daemon is already connected to the phone. A click on the bar button, or on a notification, opens this program. A notification for a conversation opens that conversation. Restart the shell once after updating so the running shell and daemon use this path.
+Install `python-textual` first. `--standalone` starts a daemon when the plugin is not running. Do not use it while the plugin's daemon is already connected to the phone. A click on the bar button, or on a notification, opens this program. A notification for a conversation opens that conversation. Restart the shell once after updating so the running shell and daemon use this path. Then quit the terminal screen and open it again from the bar button: a shell restart does not refresh a screen that is already open.
 
 ```sh
 omarchy plugin validate .
